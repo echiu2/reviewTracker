@@ -1,15 +1,26 @@
 from bs4 import BeautifulSoup, SoupStrainer
 import requests
+import time
 from queue import Queue
 from threading import Thread
 
 session = requests.Session()
 
-# Using beautiful soup to get all html data from the url 
-def get_page(url):
+# Using beautiful soup to find max_page
+def find_max(url):
     try:
         response = session.get(url)
         page = BeautifulSoup(response.text, 'lxml')
+        return page
+    except:
+        return "Url is invalid or does not exist!"
+
+# Using beautiful soup to get all html data from the url 
+def get_page(url, queue):
+    try:
+        response = session.get(url)
+        page = BeautifulSoup(response.text, 'lxml')
+        queue.put(page)
         return page
     except:
         return "Url is invalid or does not exist!"
@@ -36,6 +47,8 @@ def get_reviews(page, queue):
     
     queue.put(reviews)
 
+    return reviews
+
 # Threading function to get all content in the page
 def url_threading(urls):
     all_threads = []
@@ -44,6 +57,25 @@ def url_threading(urls):
 
     for url in urls:
         t = Thread(target=get_reviews, args=(url, my_queue))
+        t.start()
+        all_threads.append(t)
+
+    while len(all_results) < len(urls):
+        data = my_queue.get()
+        all_results.append(data)
+
+    res = [item for item in all_results]
+
+    return res
+
+#Threading to get parse all paginated url
+def page_threading(urls):
+    all_threads = []
+    all_results = []
+    my_queue = Queue()
+
+    for url in urls:
+        t = Thread(target=get_page, args=(url, my_queue))
         t.start()
         all_threads.append(t)
 
